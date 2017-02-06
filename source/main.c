@@ -22,12 +22,12 @@
 #include "sync.h"
 #include "playback.h"
 
-#define STACKSIZE (16 * 1024)
+#define STACKSIZE	(16 * 1024)
+#define fontSize	15
 
 bool debug = false;
 
 sftd_font* font;
-int fontSize = 15;
 
 // UI to PLAYER
 bool run = true;
@@ -81,82 +81,77 @@ void updateList(
 	}
 }
 
-char* basename(char* s) {
-	int i = strlen(s);
-	while (i!=-1 && s[i] != '/') i--;
-	return s+i+1;
-}
-
 void f_player(void* arg) {
 	while(run) {
-		playFile("sdmc:/Music/03 - Rosalina.mp3");
+		playFile("Haddaway_-_What_Is_Love.flac");
 	}
-}
-
-int countCharStars(char** t) {
-	int n = 0;
-	while (t[n]!=NULL) n++;
-	return n;
 }
 
 int main(int argc, char** argv)
 {
+	char**	dirlist = NULL;
+	char**	filelist = NULL;
+	int	files = 0;
+	int	dirs = 0;
+	enum sorting_algorithms sort = SORT_NAME_AZ;
+
 	sftd_init();
 	sf2d_init();
 	romfsInit();
 	sdmcInit();
 
-	FILE* file = fopen("ctrmus_debug","rb");
-	if (file != NULL) {
-		debug = true;
-		fclose(file);
-	};
-
 	chdir(DEFAULT_DIR);
-	chdir("Music");
+	//chdir("MUSIC");
 
 	sf2d_set_clear_color(RGBA8(255,106,0, 255));
 	sf2d_set_vblank_wait(0);
 	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
 
 	aptSetSleepAllowed(false);
-	svcCreateEvent(&event2, 0);
+	svcCreateEvent(&event2, RESET_ONESHOT);
 
 	Thread t2 = NULL;
-	if (!debug) t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	if(debug)
+	{
+		APT_SetAppCpuTimeLimit(50);
+		t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, 1, true);
+	}
 
-	// WORKING VERSION
-	int nbDirs;
-	int nbFiles;
-	obtainFoldersSizes(&nbDirs, &nbFiles);
-	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
-	char** files = (char**)malloc(nbFiles*sizeof(char*));
-	obtainFolders(dirs, files, SORT_NAME_AZ);
-	// todo: put files and folders together
-	foldernames = files;
-	nbFolderNames = nbFiles;
+	// TODO: put files and folders together
+	obtainDir(&dirlist, &dirs, &filelist, &files, sort);
+	/* TODO: Use dirlist and dirs directly */
+	foldernames = dirlist;
+	nbFolderNames = dirs;
+
+	/* TODO: Remove debugging, or make it nicer */
+	if(debug)
+	{
+		FILE* debug_file = fopen("sdmc:/ctrmus_debug.txt", "w+");
+
+		for(int i = 0; i < dirs; i++)
+			fprintf(debug_file, "%s\n", dirlist[i]);
+
+		for(int i = 0; i < files; i++)
+			fprintf(debug_file, "%s\n", filelist[i]);
+
+		fclose(debug_file);
+	}
+
+	const char* baseListName = "filepath/listname00";
+	listnames = (char**)malloc(nbListNames*sizeof(char*));
+	for (int i=0; i<nbListNames; i++) {
+		listnames[i] = (char*)malloc((strlen(baseListName)+1)*sizeof(char));
+		memcpy(listnames[i], baseListName, strlen(baseListName));
+		listnames[i][strlen(baseListName)-1] = '0' + (i%10);
+		listnames[i][strlen(baseListName)-2] = '0' + (i/10%10);
+		listnames[i][strlen(baseListName)-0] = 0;
+	}
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
 	oldTouchPad.px = 0;
 	oldTouchPad.py = 0;
 	orgTouchPad = oldTouchPad;
-
-	float yFolder = -100; // will go through a minmax, don't worry
-	float vyFolder = 0;
-
-	float yList = -100; // will go through a minmax, don't worry
-	float vyList = 0;
-
-	float inertia = 10;
-
-	int cellSize = fontSize*2;
-
-	int hilitFolder = -1;
-	int hilitList = -1;
-
-	float paneBorder = 160.0f;
-	float paneBorderGoal = 160.0f;
 
 	// may be loaded from a config file or something
 	u32 bgColor = RGBA8(0,0,0,255);
@@ -166,10 +161,30 @@ int main(int argc, char** argv)
 
 	int scheduleCount = 0;
 	while (aptMainLoop()) {
-		hidScanInput();
-		if (hidKeysDown() & KEY_START) break;
+		static float yFolder = -100; // will go through a minmax, don't worry
+		static float vyFolder = 0;
 
-		if (scheduleCount++%4==0) svcSignalEvent(event2);
+		static float yList = -100; // will go through a minmax, don't worry
+		static float vyList = 0;
+
+		static float inertia = 10;
+
+		static int cellSize = fontSize * 2;
+
+		static int hilitFolder = -1;
+		static int hilitList = -1;
+
+		static float paneBorder = 160.0f;
+		static float paneBorderGoal = 160.0f;
+
+		hidScanInput();
+
+		/* Exit ctrmus */
+		if(hidKeysDown() & KEY_START)
+			break;
+
+		if(scheduleCount++%4==0)
+			svcSignalEvent(event2);
 
 		// scroll using touchpad
 		touchPosition touchPad;
@@ -225,14 +240,14 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<nbListNames; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, listnames[i]);
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<nbFolderNames; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, foldernames[i]);
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
@@ -248,16 +263,15 @@ int main(int argc, char** argv)
 		sf2d_swapbuffers();
 	}
 
-	for (int i=0; i<nbFolderNames; i++) free(foldernames[i]);
-	free(foldernames);
-	for (int i=0; i<nbListNames; i++) free(listnames[i]);
-	free(listnames);
+	freeList(&dirlist, dirs);
+	freeList(&filelist, files);
 
 	// TODO kill playback
 	run = false;
 	svcSignalEvent(event1); // exit
 	svcSignalEvent(event2); // stop waiting
-	if (t2 != NULL) threadJoin(t2, 1000000);
+	if(t2 != NULL)
+		threadJoin(t2, 1000000);
 
 	sftd_free_font(font);
 
@@ -280,169 +294,92 @@ static int sortName(const void *p1, const void *p2)
 	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
 }
 
-static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
-	DIR*			dp;
-	struct dirent*	ep;
-	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
-	int				num_dirs = 0;
-	int				num_files = 0;
-
-	if(wd == NULL) goto err;
-	if((dp = opendir(wd)) == NULL) goto err;
-
-	while((ep = readdir(dp)) != NULL) {
-		if(ep->d_type == DT_DIR) {
-			num_dirs++;
-		} else {
-			num_files++;
-		}
-	}
-	if(closedir(dp) != 0)
-	goto err;
-
-	ret = 0;
-	*nbDirs = num_dirs;
-	*nbFiles = num_files;
-
-err:
-	free(wd);
-	return ret;
-}
-static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort) {
-	DIR*			dp;
-	struct dirent*	ep;
-	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
-	int				num_dirs = 0;
-	int				num_files = 0;
-
-	if(wd == NULL)
-		goto err;
-	if((dp = opendir(wd)) == NULL)
-		goto err;
-
-	while((ep = readdir(dp)) != NULL)
-	{
-		char* temp = strdup(ep->d_name);
-		if (temp == NULL) goto err;
-		if(ep->d_type == DT_DIR)
-		{
-			dirs[num_dirs] = temp;
-			num_dirs++;
-		}
-		else
-		{
-			files[num_files] = temp;
-			num_files++;
-		}
-	}
-
-	if(closedir(dp) != 0)
-		goto err;
-
-	if(sort == SORT_NAME_AZ)
-	{
-		qsort(dirs, num_dirs, sizeof(char*), sortName);
-		qsort(files, num_files, sizeof(char*), sortName);
-	}
-	ret = 0;
-
-err:
-	free(wd);
-	return ret;
-}
-
 /**
  * Obtain array of files and directories in current directory.
  *
- * \param	dirs	Unallocated pointer to store allocated directory names.
- *					This must be freed after use.
- * \param	files	Unallocated pointer to store allocated file names.
- *					This must be freed after use.
- * \param	sort	Sorting algorithm to use.
- * \return			Number of entries in total or negative on error.
+ * \param	dirlist		Pointer to store allocated directory names.
+ *						This must be freed after use.
+ * \param	dirs		Pointer to store number of directories in dirlist.
+ * \param	filelist	Pointer to store allocated file names.
+ *						This must be freed after use.
+ * \param	files		Pointer to store number of directories in filelist.
+ * \param	sort		Sorting algorithm to use.
+ * \return				Number of entries in total or negative on error.
  */
-static int obtainDir(char** *dirs_, char** *files_, int *num_dirs_, int *num_files_, enum sorting_algorithms sort)
+static int obtainDir(char*** dirlist, int* dirs, char*** filelist, int* files,
+		enum sorting_algorithms sort)
 {
 	DIR*			dp;
 	struct dirent*	ep;
 	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
 	int				num_dirs = 0;
 	int				num_files = 0;
+	char**			_dirlist = 0;
+	char**			_filelist = 0;
 
-	if(wd == NULL)
+	if((dp = opendir(".")) == NULL)
 		goto err;
-
-	if((dp = opendir(wd)) == NULL)
-		goto err;
-
-	char** dirs = NULL;
-	char** files = NULL;
 
 	while((ep = readdir(dp)) != NULL)
 	{
-		char* temp = strdup(ep->d_name);
-		if (temp == NULL) goto err;
 		if(ep->d_type == DT_DIR)
 		{
-			dirs = realloc(dirs, num_dirs * sizeof(char*));
-			*(dirs + num_dirs) = strdup(ep->d_name);
 			num_dirs++;
+			_dirlist = realloc(_dirlist, num_dirs * sizeof(char*));
+
+			if((_dirlist[num_dirs - 1] = strdup(ep->d_name)) == NULL)
+				goto err;
 		}
 		else
 		{
-			files = realloc(files, num_files * sizeof(char*));
-			*(files + num_files) = strdup(ep->d_name);
 			num_files++;
+			_filelist = realloc(_filelist, num_files * sizeof(char*));
+
+			if((_filelist[num_files - 1] = strdup(ep->d_name)) == NULL)
+				goto err;
 		}
 	}
 
-/*
 	if(sort == SORT_NAME_AZ)
 	{
-		qsort(&dirs, num_dirs, sizeof(char*), sortName);
-		qsort(&files, num_files, sizeof(char*), sortName);
+		qsort(_dirlist, num_dirs, sizeof(char*), sortName);
+		qsort(_filelist, num_files, sizeof(char*), sortName);
 	}
-*/
 
-	// NULL terminate arrays
-	dirs = realloc(dirs, (num_dirs * sizeof(char*)) + 1);
-	*(dirs + num_dirs + 1) = NULL;
-
-	files = realloc(files, (num_files * sizeof(char*)) + 1);
-	*(files + num_files + 1) = NULL;
+	*filelist = _filelist;
+	*dirlist = _dirlist;
+	*dirs = num_dirs;
+	*files = num_files;
 
 	if(closedir(dp) != 0)
 		goto err;
 
 	ret = 0;
-	*num_dirs_ = num_dirs;
-	*num_files_ = num_files;
-	*dirs_ = dirs;
-	*files_ = files;
 
 err:
-	free(wd);
 	return ret;
 }
 
 /**
  * Free memory used by an array of strings.
- * Call this with dirs and files as parameters to free memory allocated by
+ * Call this with dirlist and filelist as parameters to free memory allocated by
  * obtainDir().
+ *
+ * \param strs	List to free.
+ * \param size	Size of list.
  */
-static void freeDir(char** strs)
+static void freeList(char*** strs, int size)
 {
-	while(*strs != NULL)
+	char** tmp = *strs;
+
+	for(int i = 0; i < size; i++)
 	{
-		free(*strs);
-		strs++;
+		printf("%s\n", tmp[i]);
+		free(tmp[i]);
 	}
 
-	free(strs);
-	strs = NULL;
+	free(tmp);
+	tmp = NULL;
 
 	return;
 }
