@@ -87,12 +87,6 @@ char* basename(char* s) {
 	return s+i+1;
 }
 
-void f_player(void* arg) {
-	while(run) {
-		playFile("sdmc:/Music/03 - Rosalina.mp3");
-	}
-}
-
 int countCharStars(char** t) {
 	int n = 0;
 	while (t[n]!=NULL) n++;
@@ -122,8 +116,7 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 	svcCreateEvent(&event2, 0);
 
-	Thread t2 = NULL;
-	if (!debug) t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
 
 	// WORKING VERSION
 	int nbDirs;
@@ -169,7 +162,7 @@ int main(int argc, char** argv)
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
 
-		if (scheduleCount++%4==0) svcSignalEvent(event2);
+		keepPlayingFile();
 
 		// scroll using touchpad
 		touchPosition touchPad;
@@ -255,9 +248,6 @@ int main(int argc, char** argv)
 
 	// TODO kill playback
 	run = false;
-	svcSignalEvent(event1); // exit
-	svcSignalEvent(event2); // stop waiting
-	if (t2 != NULL) threadJoin(t2, 1000000);
 
 	sftd_free_font(font);
 

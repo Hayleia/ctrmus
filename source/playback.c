@@ -10,16 +10,16 @@
 #include "wav.h"
 #include "sync.h"
 
-int playFile(const char* file)
-{
-	struct decoder_fn decoder;
-	int16_t*		buffer1 = NULL;
-	int16_t*		buffer2 = NULL;
-	ndspWaveBuf		waveBuf[2];
-	bool			playing = true;
-	bool			lastbuf = false;
-	int				ret;
+struct decoder_fn decoder;
+int16_t*		buffer1 = NULL;
+int16_t*		buffer2 = NULL;
+ndspWaveBuf		waveBuf[2];
+bool			playing = true;
+bool			lastbuf = false;
+int				ret;
 
+int startPlayingFile(const char* file)
+{
 	switch(getFileType(file))
 	{
 		case FILE_TYPE_WAV:
@@ -44,16 +44,10 @@ int playFile(const char* file)
 	}
 
 	if(R_FAILED(ndspInit()))
-	{
-		//printf("Initialising ndsp failed.");
-		goto out;
-	}
+		stopPlayingFile();
 
 	if((ret = (*decoder.init)(file)) != 0)
-	{
-		//printf("Error initialising decoder: %d\n", ret);
-		goto out;
-	}
+		stopPlayingFile();
 
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
@@ -87,15 +81,11 @@ int playFile(const char* file)
 	 * to the while loop. So we ensure that music has started here.
 	 */
 	while(ndspChnIsPlaying(CHANNEL) == false);
+}
 
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
+int keepPlayingFile() {
+	if (playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
-		/*
-		svcWaitSynchronization(event2, U64_MAX);
-		svcClearEvent(event2);
-		*/
-		if (!svcWaitSynchronization(event1, 1)) break;
-
 		u32 kDown;
 
 		/* Number of bytes read from file.
@@ -106,9 +96,6 @@ int playFile(const char* file)
 		hidScanInput();
 		kDown = hidKeysDown();
 
-		if(kDown & KEY_B)
-			break;
-
 		if(kDown & (KEY_A | KEY_R))
 		{
 			playing = !playing;
@@ -116,7 +103,7 @@ int playFile(const char* file)
 		}
 
 		if(playing == false || lastbuf == true)
-			continue;
+			return 0;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
@@ -125,7 +112,7 @@ int playFile(const char* file)
 			if(read == 0)
 			{
 				lastbuf = true;
-				continue;
+				return 0;
 			}
 			else if(read < decoder.buffSize)
 				waveBuf[0].nsamples = read / (*decoder.channels)();
@@ -140,7 +127,7 @@ int playFile(const char* file)
 			if(read == 0)
 			{
 				lastbuf = true;
-				continue;
+				return 0;
 			}
 			else if(read < decoder.buffSize)
 				waveBuf[1].nsamples = read / (*decoder.channels)();
@@ -151,8 +138,11 @@ int playFile(const char* file)
 		DSP_FlushDataCache(buffer1, decoder.buffSize * sizeof(int16_t));
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
+	return 0;
+}
 
-out:
+int stopPlayingFile()
+{
 	//printf("\nStopping playback.\n");
 	(*decoder.exit)();
 	ndspChnWaveBufClear(CHANNEL);
