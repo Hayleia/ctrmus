@@ -162,7 +162,7 @@ int main(int argc, char** argv)
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
 
-		keepPlayingFile();
+		if (scheduleCount++%30 == 0) keepPlayingFile();
 
 		// scroll using touchpad
 		touchPosition touchPad;
@@ -240,6 +240,8 @@ int main(int argc, char** argv)
 
 		sf2d_swapbuffers();
 	}
+
+	stopPlayingFile();
 
 	for (int i=0; i<nbFolderNames; i++) free(foldernames[i]);
 	free(foldernames);

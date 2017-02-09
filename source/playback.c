@@ -84,7 +84,7 @@ int startPlayingFile(const char* file)
 }
 
 int keepPlayingFile() {
-	if (playing == false || ndspChnIsPlaying(CHANNEL) == true)
+	//if (playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
 		u32 kDown;
 
@@ -93,7 +93,6 @@ int keepPlayingFile() {
 		 */
 		static size_t read = 0;
 
-		hidScanInput();
 		kDown = hidKeysDown();
 
 		if(kDown & (KEY_A | KEY_R))
@@ -111,7 +110,7 @@ int keepPlayingFile() {
 
 			if(read == 0)
 			{
-				lastbuf = true;
+				//lastbuf = true;
 				return 0;
 			}
 			else if(read < decoder.buffSize)
@@ -126,7 +125,7 @@ int keepPlayingFile() {
 
 			if(read == 0)
 			{
-				lastbuf = true;
+				//lastbuf = true;
 				return 0;
 			}
 			else if(read < decoder.buffSize)
