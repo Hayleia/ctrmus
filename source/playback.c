@@ -110,7 +110,7 @@ int keepPlayingFile() {
 
 			if(read == 0)
 			{
-				//lastbuf = true;
+				lastbuf = true;
 				return 0;
 			}
 			else if(read < decoder.buffSize)
@@ -125,7 +125,7 @@ int keepPlayingFile() {
 
 			if(read == 0)
 			{
-				//lastbuf = true;
+				lastbuf = true;
 				return 0;
 			}
 			else if(read < decoder.buffSize)
