@@ -70,7 +70,7 @@ int initMp3(const char* file)
 	 * recommendation. The size should be a multiple of the PCM frame size.
 	 */
 	*buffSize = mpg123_outblock(mh) * 16;
-	*buffSize = mpg123_outblock(mh) * 3;
+	*buffSize = mpg123_outblock(mh) * 2;
 
 	return 0;
 }
