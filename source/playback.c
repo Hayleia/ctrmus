@@ -118,7 +118,7 @@ int keepPlayingFile() {
 			{
 				lastbuf = true;
 				stopPlayingFile();
-				return 0;
+				return 1;
 			}
 			else if(read < decoder.buffSize)
 				waveBuf[0].nsamples = read / (*decoder.channels)();
@@ -134,7 +134,7 @@ int keepPlayingFile() {
 			{
 				lastbuf = true;
 				stopPlayingFile();
-				return 0;
+				return 1;
 			}
 			else if(read < decoder.buffSize)
 				waveBuf[1].nsamples = read / (*decoder.channels)();
