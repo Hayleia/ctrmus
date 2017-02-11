@@ -17,8 +17,8 @@ enum sorting_algorithms {
 	SORT_SIZE_SMALL,
 };
 
-static int obtainFoldersSizes(int *nbDirs, int *nbFiles);
-static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort);
+static int obtainFoldersSizes(char* wd, int *nbDirs, int *nbFiles);
+static int obtainFolders(char* wd, char** dirs, char** files, enum sorting_algorithms sort);
 
 /**
  * Obtain array of files and directories in current directory.

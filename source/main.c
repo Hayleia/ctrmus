@@ -36,7 +36,9 @@ int nowPlaying = 0;
 // PLAYER to UI
 volatile float progress = 0;
 
-int nbFolderNames = 1;
+int nbDirs;
+int nbFiles;
+int nbFolderNames;
 int nbListNames = 0;
 char** foldernames = NULL;
 char** listnames = NULL;
@@ -49,18 +51,22 @@ void listClicked(int hilit) {
 }
 
 void folderClicked(int hilit) {
-	char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
-	memcpy(newListNames, listnames, nbListNames*sizeof(char*));
-	newListNames[nbListNames] = strdup(foldernames[hilit]);
-	if (nbListNames != 0) free(listnames);
-	nbListNames++;
-	listnames = newListNames;
+	if (hilit < nbDirs) {
+	} else {
+		char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
+		memcpy(newListNames, listnames, nbListNames*sizeof(char*));
+		newListNames[nbListNames] = strdup(foldernames[hilit]);
+		if (nbListNames != 0) free(listnames);
+		nbListNames++;
+		listnames = newListNames;
+	}
 }
 
 void updateList(
 	touchPosition* touchPad, touchPosition* oldTouchPad, touchPosition* orgTouchPad, bool touchPressed, bool touchWasPressed,
 	int* hilit, float y, float* vy, void (*clicked)(int hilit),
-	int cellSize, float inertia
+	int cellSize, float inertia,
+	float paneBorderGoal, float orgPaneBorderGoal
 ) {
 	if (touchPressed) {
 		if (!touchWasPressed) {
@@ -75,7 +81,9 @@ void updateList(
 	} else {
 		if (touchWasPressed) { // keys were just released
 			if (orgTouchPad->py != 256) { // we clicked, we didn't scroll
-				(*clicked)(*hilit);
+				if (paneBorderGoal == orgPaneBorderGoal) {
+					(*clicked)(*hilit);
+				}
 			}
 		}
 	}
@@ -116,18 +124,23 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 	svcCreateEvent(&event2, 0);
 
-	startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
+	//startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
+	startPlayingFile("sdmc:/Music/Gluten King.mp3");
 
 	// WORKING VERSION
-	int nbDirs;
-	int nbFiles;
-	obtainFoldersSizes(&nbDirs, &nbFiles);
+	char* wd = getcwd(NULL, 0);
+	obtainFoldersSizes(wd, &nbDirs, &nbFiles);
 	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
 	char** files = (char**)malloc(nbFiles*sizeof(char*));
-	obtainFolders(dirs, files, SORT_NAME_AZ);
-	// todo: put files and folders together
-	foldernames = files;
-	nbFolderNames = nbFiles;
+	obtainFolders(wd, dirs, files, SORT_NAME_AZ);
+	free(wd);
+
+	nbFolderNames = nbDirs+nbFiles;
+	foldernames = malloc((nbFolderNames)*sizeof(char*));
+	memcpy(foldernames, dirs, nbDirs*sizeof(char*));
+	memcpy(foldernames+nbDirs, files, nbFiles*sizeof(char*));
+	free(dirs);
+	free(files);
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
@@ -150,6 +163,7 @@ int main(int argc, char** argv)
 
 	float paneBorder = 160.0f;
 	float paneBorderGoal = 160.0f;
+	float orgPaneBorderGoal = 160.0f;
 
 	// may be loaded from a config file or something
 	u32 bgColor = RGBA8(0,0,0,255);
@@ -162,27 +176,32 @@ int main(int argc, char** argv)
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
 
-		if (scheduleCount++%30 == 0) keepPlayingFile();
+		keepPlayingFile();
 
 		// scroll using touchpad
 		touchPosition touchPad;
 		hidTouchRead(&touchPad);
 		bool touchPressed = touchPad.px+touchPad.py != 0;
 		bool touchWasPressed = oldTouchPad.px+oldTouchPad.py != 0;
-		if (!touchWasPressed) orgTouchPad = touchPad;
+		if (!touchWasPressed) {
+			orgTouchPad = touchPad;
+			orgPaneBorderGoal = paneBorderGoal;
+		}
 		if (orgTouchPad.px < paneBorder) {
 			if (touchPressed) paneBorderGoal = 320-60;
 			updateList(
 				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed,
 				&hilitList, yList, &vyList, listClicked,
-				cellSize, inertia
+				cellSize, inertia,
+				paneBorderGoal, orgPaneBorderGoal
 			);
 		} else {
 			if (touchPressed) paneBorderGoal = 60;
 			updateList(
 				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed,
 				&hilitFolder, yFolder, &vyFolder, folderClicked,
-				cellSize, inertia
+				cellSize, inertia,
+				paneBorderGoal, orgPaneBorderGoal
 			);
 		}
 
@@ -272,11 +291,10 @@ static int sortName(const void *p1, const void *p2)
 	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
 }
 
-static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
+static int obtainFoldersSizes(char* wd, int *nbDirs, int *nbFiles) {
 	DIR*			dp;
 	struct dirent*	ep;
 	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
 	int				num_dirs = 0;
 	int				num_files = 0;
 
@@ -298,14 +316,13 @@ static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
 	*nbFiles = num_files;
 
 err:
-	free(wd);
 	return ret;
 }
-static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort) {
+static int obtainFolders(char* wd, char** dirs, char** files, enum sorting_algorithms sort) {
 	DIR*			dp;
 	struct dirent*	ep;
 	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
+	wd = getcwd(NULL, 0);
 	int				num_dirs = 0;
 	int				num_files = 0;
 
@@ -341,7 +358,6 @@ static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort
 	ret = 0;
 
 err:
-	free(wd);
 	return ret;
 }
 
