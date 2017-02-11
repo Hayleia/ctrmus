@@ -44,10 +44,9 @@ char** foldernames = NULL;
 char** listnames = NULL;
 
 void listClicked(int hilit) {
-	/*
-	nowPlaying = hilit;
-	progress = 0;
-	*/
+	if (hilit < nbListNames) {
+		startPlayingFile(listnames[hilit]);
+	}
 }
 
 void folderClicked(int hilit) {

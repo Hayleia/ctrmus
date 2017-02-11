@@ -14,12 +14,16 @@ struct decoder_fn decoder;
 int16_t*		buffer1 = NULL;
 int16_t*		buffer2 = NULL;
 ndspWaveBuf		waveBuf[2];
-bool			playing = true;
+bool			playing = false;
 bool			lastbuf = false;
 int				ret;
 
 int startPlayingFile(const char* file)
 {
+	stopPlayingFile();
+	lastbuf = false;
+	playing = true;
+
 	switch(getFileType(file))
 	{
 		case FILE_TYPE_WAV:
@@ -85,6 +89,7 @@ int startPlayingFile(const char* file)
 
 int keepPlayingFile() {
 	//if (playing == false || ndspChnIsPlaying(CHANNEL) == true)
+	if (playing)
 	{
 		u32 kDown;
 
@@ -111,6 +116,7 @@ int keepPlayingFile() {
 			if(read == 0)
 			{
 				lastbuf = true;
+				stopPlayingFile();
 				return 0;
 			}
 			else if(read < decoder.buffSize)
@@ -126,6 +132,7 @@ int keepPlayingFile() {
 			if(read == 0)
 			{
 				lastbuf = true;
+				stopPlayingFile();
 				return 0;
 			}
 			else if(read < decoder.buffSize)
@@ -138,16 +145,20 @@ int keepPlayingFile() {
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
 	return 0;
+
 }
 
 int stopPlayingFile()
 {
-	//printf("\nStopping playback.\n");
-	(*decoder.exit)();
-	ndspChnWaveBufClear(CHANNEL);
-	ndspExit();
-	linearFree(buffer1);
-	linearFree(buffer2);
+	if (playing) {
+		playing = false;
+		//printf("\nStopping playback.\n");
+		(*decoder.exit)();
+		ndspChnWaveBufClear(CHANNEL);
+		ndspExit();
+		linearFree(buffer1);
+		linearFree(buffer2);
+	}
 	return 0;
 }
 
