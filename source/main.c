@@ -52,7 +52,9 @@ void listClicked(int hilit) {
 
 void folderClicked(int hilit) {
 	if (hilit < nbDirs) {
-	} else {
+		chdir(foldernames[hilit]);
+		updateFolderContents();
+	} else if (hilit < nbFolderNames) { // don't detect' clicks below the list
 		char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
 		memcpy(newListNames, listnames, nbListNames*sizeof(char*));
 		newListNames[nbListNames] = strdup(foldernames[hilit]);
@@ -122,25 +124,11 @@ int main(int argc, char** argv)
 	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
 
 	aptSetSleepAllowed(false);
-	svcCreateEvent(&event2, 0);
 
 	//startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
 	startPlayingFile("sdmc:/Music/Gluten King.mp3");
 
-	// WORKING VERSION
-	char* wd = getcwd(NULL, 0);
-	obtainFoldersSizes(wd, &nbDirs, &nbFiles);
-	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
-	char** files = (char**)malloc(nbFiles*sizeof(char*));
-	obtainFolders(wd, dirs, files, SORT_NAME_AZ);
-	free(wd);
-
-	nbFolderNames = nbDirs+nbFiles;
-	foldernames = malloc((nbFolderNames)*sizeof(char*));
-	memcpy(foldernames, dirs, nbDirs*sizeof(char*));
-	memcpy(foldernames+nbDirs, files, nbFiles*sizeof(char*));
-	free(dirs);
-	free(files);
+	updateFolderContents();
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
@@ -225,9 +213,9 @@ int main(int argc, char** argv)
 			/*
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
+			*/
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
-			*/
 		}
 		sf2d_end_frame();
 
@@ -291,9 +279,36 @@ static int sortName(const void *p1, const void *p2)
 	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
 }
 
-static int obtainFoldersSizes(char* wd, int *nbDirs, int *nbFiles) {
+void freeList(char** l, int n) {
+	for (int i=0; i<n; i++) free(l[i]);
+	free(l);
+}
+
+static int updateFolderContents() {
+	if (foldernames != NULL) freeList(foldernames, nbFolderNames);
+
+	obtainFoldersSizes(&nbDirs, &nbFiles);
+	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
+	char** files = (char**)malloc(nbFiles*sizeof(char*));
+	obtainFolders(dirs, files, SORT_NAME_AZ);
+
+	// add ".." on top of list and inc nbDirs
+	nbDirs++;
+	nbFolderNames = nbDirs+nbFiles;
+	foldernames = malloc((nbFolderNames)*sizeof(char*));
+	foldernames[0] = strdup("..");
+	memcpy(foldernames+1, dirs, nbDirs*sizeof(char*));
+	memcpy(foldernames+nbDirs, files, nbFiles*sizeof(char*));
+	free(dirs);
+	free(files);
+
+	return 0;
+}
+
+static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
 	DIR*			dp;
 	struct dirent*	ep;
+	char*			wd = getcwd(NULL, 0);
 	int				ret = -1;
 	int				num_dirs = 0;
 	int				num_files = 0;
@@ -316,13 +331,14 @@ static int obtainFoldersSizes(char* wd, int *nbDirs, int *nbFiles) {
 	*nbFiles = num_files;
 
 err:
+	free(wd);
 	return ret;
 }
-static int obtainFolders(char* wd, char** dirs, char** files, enum sorting_algorithms sort) {
+static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort) {
 	DIR*			dp;
 	struct dirent*	ep;
+	char*			wd = getcwd(NULL, 0);
 	int				ret = -1;
-	wd = getcwd(NULL, 0);
 	int				num_dirs = 0;
 	int				num_files = 0;
 
@@ -358,6 +374,7 @@ static int obtainFolders(char* wd, char** dirs, char** files, enum sorting_algor
 	ret = 0;
 
 err:
+	free(wd);
 	return ret;
 }
 
