@@ -168,7 +168,11 @@ int main(int argc, char** argv)
 
 		if (keepPlayingFile() == 1) {
 			nowPlaying++;
-			if (nowPlaying < nbListNames) startPlayingFile(listnames[nowPlaying]);
+			if (nowPlaying < nbListNames) {
+				startPlayingFile(listnames[nowPlaying]);
+			} else {
+				nowPlaying = -1;
+			}
 		}
 
 		// scroll using touchpad
