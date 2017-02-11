@@ -125,7 +125,8 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 
 	//startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
-	startPlayingFile("sdmc:/Music/Gluten King.mp3");
+	//startPlayingFile("sdmc:/Music/Gluten King.mp3");
+	startPlayingFile("romfs:/noise.mp3");
 
 	updateFolderContents();
 
