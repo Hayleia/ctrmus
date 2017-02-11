@@ -250,10 +250,8 @@ int main(int argc, char** argv)
 
 	stopPlayingFile();
 
-	for (int i=0; i<nbFolderNames; i++) free(foldernames[i]);
-	free(foldernames);
-	for (int i=0; i<nbListNames; i++) free(listnames[i]);
-	free(listnames);
+	freeList(foldernames, nbFolderNames);
+	freeList(listnames, nbListNames);
 
 	// TODO kill playback
 	run = false;

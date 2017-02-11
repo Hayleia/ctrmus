@@ -17,6 +17,7 @@ enum sorting_algorithms {
 	SORT_SIZE_SMALL,
 };
 
+void freeList(char** l, int n);
 static int updateFolderContents();
 static int obtainFoldersSizes(int *nbDirs, int *nbFiles);
 static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort);
