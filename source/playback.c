@@ -21,8 +21,6 @@ int				ret;
 int startPlayingFile(const char* file)
 {
 	stopPlayingFile();
-	lastbuf = false;
-	playing = true;
 
 	switch(getFileType(file))
 	{
@@ -52,6 +50,9 @@ int startPlayingFile(const char* file)
 
 	if((ret = (*decoder.init)(file)) != 0)
 		stopPlayingFile();
+
+	lastbuf = false;
+	playing = true;
 
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
