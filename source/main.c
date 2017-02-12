@@ -43,11 +43,22 @@ int nbListNames = 0;
 char** foldernames = NULL;
 char** listnames = NULL;
 
+int heldListIndex = -1;
+
+void listLongClicked(int hilit) {
+	if (hilit < nbListNames) {
+		heldListIndex = heldListIndex == hilit ? -1 : hilit;
+	}
+}
+
 void listClicked(int hilit) {
 	if (hilit < nbListNames) {
 		nowPlaying = hilit;
 		startPlayingFile(listnames[hilit]);
 	}
+}
+
+void folderLongClicked(int hilit) {
 }
 
 void folderClicked(int hilit) {
@@ -64,30 +75,45 @@ void folderClicked(int hilit) {
 	}
 }
 
+#define SCROLL_THRESHOLD 15.0f
+
 void updateList(
-	touchPosition* touchPad, touchPosition* oldTouchPad, touchPosition* orgTouchPad, bool touchPressed, bool touchWasPressed,
-	int* hilit, float y, float* vy, void (*clicked)(int hilit),
+	touchPosition *touchPad, touchPosition *oldTouchPad, touchPosition *orgTouchPad, bool touchPressed, bool touchWasPressed, u64 orgTimeTouched,
+	int *hilit, float y, float *vy, void (*clicked)(int hilit), void (*longclicked)(int hilit),
 	int cellSize, float inertia,
 	float paneBorderGoal, float orgPaneBorderGoal
 ) {
+	static bool ignoreTouch = false;
+
 	if (touchPressed) {
 		if (!touchWasPressed) {
 			*hilit = (y+touchPad->py)/cellSize;
 		} else {
-			if (fabs((float)(touchPad->py-orgTouchPad->py))>15.0f) {
-				// keep scrolling even if we come near the "real" original pos
-				orgTouchPad->py = 256;
+			if (fabs((float)(touchPad->py-orgTouchPad->py))>SCROLL_THRESHOLD) {
+				orgTouchPad->py = 256; // keep scrolling even if we come back near the "real" original pos
 				*vy = oldTouchPad->py - touchPad->py;
+			} else {
+				if (!ignoreTouch) {
+					if (osGetTime()-orgTimeTouched > 700) {
+						ignoreTouch = true;
+						(*longclicked)(*hilit);
+					}
+				}
 			}
 		}
 	} else {
 		if (touchWasPressed) { // keys were just released
-			if (orgTouchPad->py != 256) { // we clicked, we didn't scroll
-				if (paneBorderGoal == orgPaneBorderGoal) {
-					(*clicked)(*hilit);
+			if (orgTouchPad->py != 256) { // we didn't scroll
+				if (paneBorderGoal == orgPaneBorderGoal) { // not the first time we click on that panel to bring it to focus
+					if (ignoreTouch) { // long click
+						//(*longclicked)(*hilit);
+					} else {
+						(*clicked)(*hilit);
+					}
 				}
 			}
 		}
+		ignoreTouch = false;
 	}
 }
 
@@ -136,6 +162,7 @@ int main(int argc, char** argv)
 	oldTouchPad.px = 0;
 	oldTouchPad.py = 0;
 	orgTouchPad = oldTouchPad;
+	u64 orgTimeTouched = 0;
 
 	float yFolder = -100; // will go through a minmax, don't worry
 	float vyFolder = 0;
@@ -183,20 +210,21 @@ int main(int argc, char** argv)
 		if (!touchWasPressed) {
 			orgTouchPad = touchPad;
 			orgPaneBorderGoal = paneBorderGoal;
+			orgTimeTouched = osGetTime();
 		}
 		if (orgTouchPad.px < paneBorder) {
 			if (touchPressed) paneBorderGoal = 320-60;
 			updateList(
-				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed,
-				&hilitList, yList, &vyList, listClicked,
+				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed, orgTimeTouched,
+				&hilitList, yList, &vyList, listClicked, listLongClicked,
 				cellSize, inertia,
 				paneBorderGoal, orgPaneBorderGoal
 			);
 		} else {
 			if (touchPressed) paneBorderGoal = 60;
 			updateList(
-				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed,
-				&hilitFolder, yFolder, &vyFolder, folderClicked,
+				&touchPad, &oldTouchPad, &orgTouchPad, touchPressed, touchWasPressed, orgTimeTouched,
+				&hilitFolder, yFolder, &vyFolder, folderClicked, folderLongClicked,
 				cellSize, inertia,
 				paneBorderGoal, orgPaneBorderGoal
 			);
@@ -223,6 +251,7 @@ int main(int argc, char** argv)
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
 			*/
+			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
 		}
