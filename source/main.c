@@ -45,9 +45,22 @@ char** listnames = NULL;
 
 int heldListIndex = -1;
 
-void listLongClicked(int hilit) {
+void listLongClicked(int hilit, bool released, int deltaX) {
 	if (hilit < nbListNames) {
-		heldListIndex = heldListIndex == hilit ? -1 : hilit;
+		if (released) {
+			if (deltaX > 50) {
+				free(listnames[hilit]);
+				nbListNames--;
+				char** newlistnames = malloc(nbListNames*sizeof(char*));
+				// do edge cases crash? like when the "size to copy" is 0?
+				memcpy(newlistnames, listnames, hilit*sizeof(char*));
+				memcpy(newlistnames+hilit, listnames+hilit+1, (nbListNames-hilit)*sizeof(char*));
+				free(listnames);
+				listnames = newlistnames;
+			}
+		} else {
+			heldListIndex = heldListIndex == hilit ? -1 : hilit;
+		}
 	}
 }
 
@@ -58,7 +71,7 @@ void listClicked(int hilit) {
 	}
 }
 
-void folderLongClicked(int hilit) {
+void folderLongClicked(int hilit, bool released, int deltaX) {
 }
 
 void folderClicked(int hilit) {
@@ -79,7 +92,7 @@ void folderClicked(int hilit) {
 
 void updateList(
 	touchPosition *touchPad, touchPosition *oldTouchPad, touchPosition *orgTouchPad, bool touchPressed, bool touchWasPressed, u64 orgTimeTouched,
-	int *hilit, float y, float *vy, void (*clicked)(int hilit), void (*longclicked)(int hilit),
+	int *hilit, float y, float *vy, void (*clicked)(int hilit), void (*longclicked)(int hilit, bool released, int deltaX),
 	int cellSize, float inertia,
 	float paneBorderGoal, float orgPaneBorderGoal
 ) {
@@ -89,14 +102,16 @@ void updateList(
 		if (!touchWasPressed) {
 			*hilit = (y+touchPad->py)/cellSize;
 		} else {
-			if (fabs((float)(touchPad->py-orgTouchPad->py))>SCROLL_THRESHOLD) {
+			if (fabs((float)(touchPad->px-orgTouchPad->px))>SCROLL_THRESHOLD) {
+				ignoreTouch = true;
+			} else if (fabs((float)(touchPad->py-orgTouchPad->py))>SCROLL_THRESHOLD) {
 				orgTouchPad->py = 256; // keep scrolling even if we come back near the "real" original pos
 				*vy = oldTouchPad->py - touchPad->py;
 			} else {
 				if (!ignoreTouch) {
 					if (osGetTime()-orgTimeTouched > 700) {
+						(*longclicked)(*hilit, false, 0);
 						ignoreTouch = true;
-						(*longclicked)(*hilit);
 					}
 				}
 			}
@@ -105,8 +120,8 @@ void updateList(
 		if (touchWasPressed) { // keys were just released
 			if (orgTouchPad->py != 256) { // we didn't scroll
 				if (paneBorderGoal == orgPaneBorderGoal) { // not the first time we click on that panel to bring it to focus
-					if (ignoreTouch) { // long click
-						//(*longclicked)(*hilit);
+					if (ignoreTouch) { // long click or swipe
+						(*longclicked)(*hilit, true, abs(touchPad->px - orgTouchPad->px));
 					} else {
 						(*clicked)(*hilit);
 					}
@@ -263,19 +278,22 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<nbListNames; i++) {
 				u32 color = textColor;
+				int x = 0;
+				if (paneBorderGoal > 160 && i == hilitList) x += touchPad.px - orgTouchPad.px;
 				if (i==hilitList) color = hlTextColor;
 				if (i==nowPlaying) color = slTextColor;
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, color, fontSize, basename(listnames[i]));
+				sftd_draw_textf(font, x+10, cellSize*i-yList, color, fontSize, basename(listnames[i]));
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<nbFolderNames; i++) {
 				u32 color = textColor;
+				int x = paneBorder;
 				if (i==hilitFolder) color = hlTextColor;
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, color, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, basename(foldernames[i]));
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
