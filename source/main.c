@@ -51,6 +51,7 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 	if (hilit < nbListNames) {
 		if (released) {
 			if (deltaX > 100) {
+				if (heldListIndex == hilit) heldListIndex = -1;
 				free(listnames[hilit]);
 				nbListNames--;
 				char** newlistnames = malloc(nbListNames*sizeof(char*));
@@ -74,6 +75,11 @@ void listClicked(int hilit) {
 			char* temp = listnames[hilit];
 			listnames[hilit] = listnames[heldListIndex];
 			listnames[heldListIndex] = temp;
+			if (nowPlaying == heldListIndex) {
+				nowPlaying = hilit;
+			} else if (nowPlaying == hilit) {
+				nowPlaying = heldListIndex;
+			}
 			heldListIndex = -1;
 		}
 	}
@@ -132,6 +138,7 @@ void updateList(
 				if (paneBorderGoal == orgPaneBorderGoal) { // not the first time we click on that panel to bring it to focus
 					if (ignoreTouch) { // long click or swipe
 						(*longclicked)(*hilit, true, fabs((float)deltaX));
+						deltaX = 0;
 					} else {
 						(*clicked)(*hilit);
 					}
