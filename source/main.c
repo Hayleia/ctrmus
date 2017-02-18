@@ -43,16 +43,17 @@ int nbListNames = 0;
 char** foldernames = NULL;
 char** listnames = NULL;
 
+int debugInt = 0;
 int heldListIndex = -1;
 
 void listLongClicked(int hilit, bool released, int deltaX) {
+	debugInt = deltaX;
 	if (hilit < nbListNames) {
 		if (released) {
-			if (deltaX > 50) {
+			if (deltaX > 100) {
 				free(listnames[hilit]);
 				nbListNames--;
 				char** newlistnames = malloc(nbListNames*sizeof(char*));
-				// do edge cases crash? like when the "size to copy" is 0?
 				memcpy(newlistnames, listnames, hilit*sizeof(char*));
 				memcpy(newlistnames+hilit, listnames+hilit+1, (nbListNames-hilit)*sizeof(char*));
 				free(listnames);
@@ -66,8 +67,15 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 
 void listClicked(int hilit) {
 	if (hilit < nbListNames) {
-		nowPlaying = hilit;
-		startPlayingFile(listnames[hilit]);
+		if (heldListIndex == -1) {
+			nowPlaying = hilit;
+			startPlayingFile(listnames[hilit]);
+		} else {
+			char* temp = listnames[hilit];
+			listnames[hilit] = listnames[heldListIndex];
+			listnames[heldListIndex] = temp;
+			heldListIndex = -1;
+		}
 	}
 }
 
@@ -97,12 +105,14 @@ void updateList(
 	float paneBorderGoal, float orgPaneBorderGoal
 ) {
 	static bool ignoreTouch = false;
+	static int deltaX = 0;
 
 	if (touchPressed) {
 		if (!touchWasPressed) {
 			*hilit = (y+touchPad->py)/cellSize;
 		} else {
 			if (fabs((float)(touchPad->px-orgTouchPad->px))>SCROLL_THRESHOLD) {
+				deltaX = touchPad->px-orgTouchPad->px;
 				ignoreTouch = true;
 			} else if (fabs((float)(touchPad->py-orgTouchPad->py))>SCROLL_THRESHOLD) {
 				orgTouchPad->py = 256; // keep scrolling even if we come back near the "real" original pos
@@ -121,7 +131,7 @@ void updateList(
 			if (orgTouchPad->py != 256) { // we didn't scroll
 				if (paneBorderGoal == orgPaneBorderGoal) { // not the first time we click on that panel to bring it to focus
 					if (ignoreTouch) { // long click or swipe
-						(*longclicked)(*hilit, true, abs(touchPad->px - orgTouchPad->px));
+						(*longclicked)(*hilit, true, fabs((float)deltaX));
 					} else {
 						(*clicked)(*hilit);
 					}
@@ -167,7 +177,6 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 
 	//startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
-	//startPlayingFile("sdmc:/Music/Gluten King.mp3");
 	startPlayingFile("romfs:/noise.mp3");
 
 	updateFolderContents();
@@ -266,6 +275,7 @@ int main(int argc, char** argv)
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
 			*/
+			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "debugInt: %i", debugInt);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
@@ -282,6 +292,7 @@ int main(int argc, char** argv)
 				if (paneBorderGoal > 160 && i == hilitList) x += touchPad.px - orgTouchPad.px;
 				if (i==hilitList) color = hlTextColor;
 				if (i==nowPlaying) color = slTextColor;
+				if (i == heldListIndex) sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, cellSize, RGBA8(255,255,255,64));
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
 				sftd_draw_textf(font, x+10, cellSize*i-yList, color, fontSize, basename(listnames[i]));
 			}
