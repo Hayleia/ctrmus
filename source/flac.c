@@ -6,7 +6,8 @@
 #include "flac.h"
 
 static drflac*		pFlac;
-static const int	buffSize = 16 * 1024;
+//static const int	buffSize = 16 * 1024;
+static const int	buffSize = 8 * 1024;
 
 /**
  * Set decoder parameters for flac.
