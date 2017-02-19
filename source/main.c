@@ -45,6 +45,8 @@ char** listnames = NULL;
 
 int debugInt = 0;
 int heldListIndex = -1;
+int emptyListItemIndex = -1;
+int emptyListItemSize = -1;
 
 void listLongClicked(int hilit, bool released, int deltaX) {
 	debugInt = deltaX;
@@ -52,6 +54,8 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 		if (released) {
 			if (deltaX > 100) {
 				if (heldListIndex == hilit) heldListIndex = -1;
+				emptyListItemIndex = hilit;
+				emptyListItemSize = 240; // will be lowered
 				free(listnames[hilit]);
 				nbListNames--;
 				char** newlistnames = malloc(nbListNames*sizeof(char*));
@@ -266,6 +270,9 @@ int main(int argc, char** argv)
 		yFolder += vyFolder;
 		vyFolder = vyFolder*inertia/(inertia+1);
 
+		emptyListItemSize = emptyListItemSize*inertia/(inertia+1);
+		emptyListItemSize = fmin(cellSize, emptyListItemSize);
+
 		paneBorder = (paneBorder*inertia+paneBorderGoal*1)/(inertia+1);
 
 		oldTouchPad = touchPad;
@@ -286,6 +293,8 @@ int main(int argc, char** argv)
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
+			sftd_draw_textf(font, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
+			sftd_draw_textf(font, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
 		}
 		sf2d_end_frame();
 
@@ -293,25 +302,26 @@ int main(int argc, char** argv)
 		{
 			// list entries
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
-			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<nbListNames; i++) {
+			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<=nbListNames; i++) {
 				u32 color = textColor;
 				int x = 0;
+				int y = i >= emptyListItemIndex ? emptyListItemSize : 0;
 				if (paneBorderGoal > 160 && i == hilitList) x += touchPad.px - orgTouchPad.px;
-				if (i==hilitList) color = hlTextColor;
-				if (i==nowPlaying) color = slTextColor;
-				if (i == heldListIndex) sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, cellSize, RGBA8(255,255,255,64));
-				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, x+10, cellSize*i-yList, color, fontSize, basename(listnames[i]));
+				if (i == hilitList) color = hlTextColor;
+				if (i == nowPlaying) color = slTextColor;
+				if (i == heldListIndex) sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, cellSize, RGBA8(255,255,255,64));
+				sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
+				sftd_draw_textf(font, x+10, y+cellSize*i-yList, color, fontSize, i==nbListNames ? "" : basename(listnames[i]));
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
-			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<nbFolderNames; i++) {
+			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<=nbFolderNames; i++) {
 				u32 color = textColor;
 				int x = paneBorder;
 				if (i==hilitFolder) color = hlTextColor;
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : basename(foldernames[i]));
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
