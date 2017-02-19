@@ -99,7 +99,15 @@ void folderClicked(int hilit) {
 	} else if (hilit < nbFolderNames) { // don't detect' clicks below the list
 		char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
 		memcpy(newListNames, listnames, nbListNames*sizeof(char*));
-		newListNames[nbListNames] = strdup(foldernames[hilit]);
+		char* wd = getcwd(NULL, 0);
+		int lw = strlen(wd);
+		int lb = strlen(foldernames[hilit]);
+		int l = lw + lb;
+		newListNames[nbListNames] = (char*)malloc((l+1)*sizeof(char));
+		memcpy(newListNames[nbListNames], wd, lw);
+		memcpy(newListNames[nbListNames]+lw, foldernames[hilit], lb);
+		newListNames[nbListNames][l] = 0;
+		free(wd);
 		if (nbListNames != 0) free(listnames);
 		nbListNames++;
 		listnames = newListNames;
@@ -321,7 +329,7 @@ int main(int argc, char** argv)
 				int x = paneBorder;
 				if (i==hilitFolder) color = hlTextColor;
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : basename(foldernames[i]));
+				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : foldernames[i]);
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
