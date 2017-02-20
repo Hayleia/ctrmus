@@ -231,6 +231,8 @@ int main(int argc, char** argv)
 	u32 hlTextColor = RGBA8(255,0,0,255);
 	u32 slTextColor = RGBA8(255,128,0,255);
 
+	sf2d_set_vblank_wait(1);
+
 	int scheduleCount = 0;
 	while (aptMainLoop()) {
 		hidScanInput();
@@ -289,20 +291,18 @@ int main(int argc, char** argv)
 		yFolder = fmax(-10,fmin(cellSize*nbFolderNames-240,yFolder));
 		yList = fmax(-10,fmin(cellSize*nbListNames-240,yList));
 
-		gspWaitForVBlank();
-
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
 			/*
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
-			*/
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "debugInt: %i", debugInt);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
 			sftd_draw_textf(font, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
 			sftd_draw_textf(font, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
+			*/
 		}
 		sf2d_end_frame();
 
