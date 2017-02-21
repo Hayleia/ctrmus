@@ -26,7 +26,8 @@
 
 bool debug = false;
 
-sftd_font* font;
+sftd_font* fontR;
+sftd_font* fontB;
 int fontSize = 15;
 
 // UI to PLAYER
@@ -54,6 +55,8 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 		if (released) {
 			if (deltaX > 100) {
 				if (heldListIndex == hilit) heldListIndex = -1;
+				if (nowPlaying == hilit) nowPlaying = -1;
+				if (nowPlaying > hilit) nowPlaying--;
 				emptyListItemIndex = hilit;
 				emptyListItemSize = 240; // will be lowered
 				free(listnames[hilit]);
@@ -191,7 +194,8 @@ int main(int argc, char** argv)
 
 	sf2d_set_clear_color(RGBA8(255,106,0, 255));
 	sf2d_set_vblank_wait(0);
-	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
+	fontR = sftd_load_font_file("romfs:/Ubuntu-R.ttf");
+	fontB = sftd_load_font_file("romfs:/Ubuntu-B.ttf");
 
 	aptSetSleepAllowed(false);
 
@@ -294,14 +298,14 @@ int main(int argc, char** argv)
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
 			/*
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "debugInt: %i", debugInt);
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
-			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
-			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
-			sftd_draw_textf(font, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
-			sftd_draw_textf(font, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
+			sftd_draw_textf(fontR, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
+			sftd_draw_textf(fontR, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
+			sftd_draw_textf(fontR, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "debugInt: %i", debugInt);
+			sftd_draw_textf(fontR, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "heldListIndex: %i", heldListIndex);
+			sftd_draw_textf(fontR, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
+			sftd_draw_textf(fontR, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
+			sftd_draw_textf(fontR, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
+			sftd_draw_textf(fontR, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
 			*/
 		}
 		sf2d_end_frame();
@@ -319,7 +323,7 @@ int main(int argc, char** argv)
 				if (i == nowPlaying) color = slTextColor;
 				if (i == heldListIndex) sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, cellSize, RGBA8(255,255,255,64));
 				sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, x+10, y+cellSize*i-yList, color, fontSize, i==nbListNames ? "" : basename(listnames[i]));
+				sftd_draw_textf(fontR, x+10, y+cellSize*i-yList, color, fontSize, i==nbListNames ? "" : basename(listnames[i]));
 			}
 
 			// folder entries
@@ -328,6 +332,7 @@ int main(int argc, char** argv)
 				u32 color = textColor;
 				int x = paneBorder;
 				if (i==hilitFolder) color = hlTextColor;
+				sftd_font* font = i<nbDirs ? fontB:fontR;
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
 				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : foldernames[i]);
 			}
@@ -353,7 +358,8 @@ int main(int argc, char** argv)
 	// TODO kill playback
 	run = false;
 
-	sftd_free_font(font);
+	sftd_free_font(fontR);
+	sftd_free_font(fontB);
 
 	sdmcExit();
 	romfsExit();
