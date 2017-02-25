@@ -39,7 +39,7 @@ endif
 
 # COMMON CONFIGURATION #
 
-NAME := ctrmus
+NAME := MadCitrus
 
 BUILD_DIR := build
 OUTPUT_DIR := output
@@ -64,9 +64,9 @@ VERSION_MICRO := $(word 3, $(VERSION_PARTS))
 
 TITLE := $(NAME)
 DESCRIPTION := 3DS Music Player
-AUTHOR := Deltabeard
-PRODUCT_CODE := CTR-P-CMUS
-UNIQUE_ID := 0xFF3CC
+AUTHOR := Deltabeard+Hayleia
+PRODUCT_CODE := MAD-CITRUS
+UNIQUE_ID := 0x11ADC
 
 SYSTEM_MODE := 64MB
 SYSTEM_MODE_EXT := Legacy

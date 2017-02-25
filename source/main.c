@@ -49,6 +49,15 @@ int heldListIndex = -1;
 int emptyListItemIndex = -1;
 int emptyListItemSize = -1;
 
+void addToPlaylist(char* filepath) {
+	char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
+	memcpy(newListNames, listnames, nbListNames*sizeof(char*));
+	newListNames[nbListNames] = filepath;
+	if (nbListNames != 0) free(listnames);
+	nbListNames++;
+	listnames = newListNames;
+}
+
 void listLongClicked(int hilit, bool released, int deltaX) {
 	debugInt = deltaX;
 	if (hilit < nbListNames) {
@@ -100,20 +109,16 @@ void folderClicked(int hilit) {
 		chdir(foldernames[hilit]);
 		updateFolderContents();
 	} else if (hilit < nbFolderNames) { // don't detect' clicks below the list
-		char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
-		memcpy(newListNames, listnames, nbListNames*sizeof(char*));
 		char* wd = getcwd(NULL, 0);
 		int lw = strlen(wd);
 		int lb = strlen(foldernames[hilit]);
 		int l = lw + lb;
-		newListNames[nbListNames] = (char*)malloc((l+1)*sizeof(char));
-		memcpy(newListNames[nbListNames], wd, lw);
-		memcpy(newListNames[nbListNames]+lw, foldernames[hilit], lb);
-		newListNames[nbListNames][l] = 0;
+		char* filepath = (char*)malloc((l+1)*sizeof(char));
+		memcpy(filepath, wd, lw);
+		memcpy(filepath+lw, foldernames[hilit], lb);
+		filepath[l] = 0;
 		free(wd);
-		if (nbListNames != 0) free(listnames);
-		nbListNames++;
-		listnames = newListNames;
+		addToPlaylist(filepath);
 	}
 }
 
@@ -170,6 +175,28 @@ char* basename(char* s) {
 	return s+i+1;
 }
 
+void loadPlaylist(char* filename) {
+	FILE* f = fopen(filename, "r");
+	if (f == NULL) return;
+
+	char* line = malloc(2000*sizeof(char));
+	while (fgets(line, 2000, f) != NULL) {
+		line[strlen(line)-1] = 0; // remove '\n'
+		addToPlaylist(strdup(line));
+	}
+	free(line);
+}
+
+void savePlaylist(char* filename) {
+	FILE* f = fopen(filename,"wb+");
+	if (f == NULL) return;
+	for (int i=0; i<nbListNames; i++) {
+		fputs(listnames[i], f);
+		fputc('\n', f);
+	}
+	fclose(f);
+}
+
 int countCharStars(char** t) {
 	int n = 0;
 	while (t[n]!=NULL) n++;
@@ -189,6 +216,8 @@ int main(int argc, char** argv)
 		fclose(file);
 	};
 
+	loadPlaylist("sdmc:/playlist.mdcq");
+
 	chdir(DEFAULT_DIR);
 	chdir("Music");
 
@@ -200,7 +229,7 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 
 	//startPlayingFile("sdmc:/Music/03 - Rosalina.mp3");
-	startPlayingFile("romfs:/noise.mp3");
+	startPlayingFile("romfs:/noise.wav");
 
 	updateFolderContents();
 
@@ -242,7 +271,7 @@ int main(int argc, char** argv)
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
 
-		if (keepPlayingFile() == 1) {
+		if (keepPlayingFile() == 1 || (hidKeysDown() & (KEY_ZL | KEY_R))) {
 			nowPlaying++;
 			if (nowPlaying < nbListNames) {
 				startPlayingFile(listnames[nowPlaying]);
@@ -351,6 +380,8 @@ int main(int argc, char** argv)
 	}
 
 	stopPlayingFile();
+
+	savePlaylist("sdmc:/playlist.mdcq");
 
 	freeList(foldernames, nbFolderNames);
 	freeList(listnames, nbListNames);
