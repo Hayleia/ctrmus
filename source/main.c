@@ -272,6 +272,15 @@ int main(int argc, char** argv)
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
 
+		if ((hidKeysDown() & (KEY_L | KEY_ZR))) {
+			nowPlaying = fmax(0, nowPlaying-1);
+			if (nowPlaying < nbListNames) {
+				startPlayingFile(listnames[nowPlaying]);
+			} else {
+				nowPlaying = -1;
+			}
+		}
+
 		if (keepPlayingFile() == 1 || (hidKeysDown() & (KEY_ZL | KEY_R))) {
 			nowPlaying++;
 			if (nowPlaying < nbListNames) {
