@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sf2d.h>
 #include <sftd.h>
+#include <time.h>
 
 #include "all.h"
 #include "main.h"
@@ -324,6 +325,13 @@ int main(int argc, char** argv)
 		yFolder = fmax(-10,fmin(cellSize*nbFolderNames-240,yFolder));
 		yList = fmax(-10,fmin(cellSize*nbListNames-240,yList));
 
+		//Print current time
+		time_t unixTime = time(NULL);
+		struct tm* timeStruct = gmtime((const time_t *)&unixTime);
+		int hours = timeStruct->tm_hour;
+		int minutes = timeStruct->tm_min;
+		int seconds = timeStruct->tm_sec;
+
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
 			/*
@@ -336,6 +344,7 @@ int main(int argc, char** argv)
 			sftd_draw_textf(fontR, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
 			sftd_draw_textf(fontR, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
 			*/
+			sftd_draw_textf(fontB, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%02i:%02i:%02i", hours, minutes, seconds);
 		}
 		sf2d_end_frame();
 
