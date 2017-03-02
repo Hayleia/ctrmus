@@ -89,13 +89,20 @@ void listClicked(int hilit) {
 			nowPlaying = hilit;
 			startPlayingFile(listnames[hilit]);
 		} else {
-			char* temp = listnames[hilit];
-			listnames[hilit] = listnames[heldListIndex];
-			listnames[heldListIndex] = temp;
-			if (nowPlaying == heldListIndex) {
-				nowPlaying = hilit;
-			} else if (nowPlaying == hilit) {
-				nowPlaying = heldListIndex;
+			if (hilit == heldListIndex) {
+				addToPlaylist(strdup("")); // insert an emtpy line at the end
+				char* temp = listnames[nbListNames-1]; // move it from the end to here
+				for (int i=nbListNames-1; i>hilit; i--) listnames[i] = listnames[i-1];
+				listnames[hilit] = temp;
+			} else {
+				char* temp = listnames[hilit];
+				listnames[hilit] = listnames[heldListIndex];
+				listnames[heldListIndex] = temp;
+				if (nowPlaying == heldListIndex) {
+					nowPlaying = hilit;
+				} else if (nowPlaying == hilit) {
+					nowPlaying = heldListIndex;
+				}
 			}
 			heldListIndex = -1;
 		}
