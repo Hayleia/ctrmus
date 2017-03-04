@@ -58,11 +58,22 @@ void addToPlaylist(char* filepath) {
 	nbListNames++;
 	listnames = newListNames;
 }
-void insertInList(int j, char* s) {
+void insertInList(int hilit, char* s) {
 	addToPlaylist(s); // insert an emtpy line at the end
 	char* temp = listnames[nbListNames-1]; // move it from the end to here
-	for (int i=nbListNames-1; i>j; i--) listnames[i] = listnames[i-1];
-	listnames[j] = temp;
+	for (int i=nbListNames-1; i>hilit; i--) listnames[i] = listnames[i-1];
+	listnames[hilit] = temp;
+}
+void deleteInList(int hilit) {
+	emptyListItemIndex = hilit;
+	emptyListItemSize = 240; // will be lowered
+	free(listnames[hilit]);
+	nbListNames--;
+	char** newlistnames = malloc(nbListNames*sizeof(char*));
+	memcpy(newlistnames, listnames, hilit*sizeof(char*));
+	memcpy(newlistnames+hilit, listnames+hilit+1, (nbListNames-hilit)*sizeof(char*));
+	free(listnames);
+	listnames = newlistnames;
 }
 
 void listLongClicked(int hilit, bool released, int deltaX) {
@@ -73,15 +84,7 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 				if (heldListIndex == hilit) heldListIndex = -1;
 				if (nowPlaying == hilit) nowPlaying = -1;
 				if (nowPlaying > hilit) nowPlaying--;
-				emptyListItemIndex = hilit;
-				emptyListItemSize = 240; // will be lowered
-				free(listnames[hilit]);
-				nbListNames--;
-				char** newlistnames = malloc(nbListNames*sizeof(char*));
-				memcpy(newlistnames, listnames, hilit*sizeof(char*));
-				memcpy(newlistnames+hilit, listnames+hilit+1, (nbListNames-hilit)*sizeof(char*));
-				free(listnames);
-				listnames = newlistnames;
+				deleteInList(hilit);
 			}
 		} else {
 			heldListIndex = heldListIndex == hilit ? -1 : hilit;
