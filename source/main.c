@@ -109,9 +109,7 @@ void listClicked(int hilit) {
 			nowPlaying = hilit;
 			startPlayingFile(listnames[hilit]);
 		} else {
-			if (hilit == heldListIndex) {
-				insertInList(hilit, strdup(""));
-			} else {
+			if (hilit != heldListIndex) {
 				char* temp = listnames[hilit];
 				listnames[hilit] = listnames[heldListIndex];
 				listnames[heldListIndex] = temp;
