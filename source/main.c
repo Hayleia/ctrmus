@@ -58,6 +58,12 @@ void addToPlaylist(char* filepath) {
 	nbListNames++;
 	listnames = newListNames;
 }
+void insertInList(int j, char* s) {
+	addToPlaylist(s); // insert an emtpy line at the end
+	char* temp = listnames[nbListNames-1]; // move it from the end to here
+	for (int i=nbListNames-1; i>j; i--) listnames[i] = listnames[i-1];
+	listnames[j] = temp;
+}
 
 void listLongClicked(int hilit, bool released, int deltaX) {
 	debugInt = deltaX;
@@ -90,10 +96,7 @@ void listClicked(int hilit) {
 			startPlayingFile(listnames[hilit]);
 		} else {
 			if (hilit == heldListIndex) {
-				addToPlaylist(strdup("")); // insert an emtpy line at the end
-				char* temp = listnames[nbListNames-1]; // move it from the end to here
-				for (int i=nbListNames-1; i>hilit; i--) listnames[i] = listnames[i-1];
-				listnames[hilit] = temp;
+				insertInList(hilit, strdup(""));
 			} else {
 				char* temp = listnames[hilit];
 				listnames[hilit] = listnames[heldListIndex];
