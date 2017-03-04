@@ -59,6 +59,8 @@ void addToPlaylist(char* filepath) {
 	listnames = newListNames;
 }
 void insertInList(int hilit, char* s) {
+	// add an extending cell "animation" the same way as with deletion
+	// use the same "timer" variable so a move gets both animations in sync
 	addToPlaylist(s); // insert an emtpy line at the end
 	char* temp = listnames[nbListNames-1]; // move it from the end to here
 	for (int i=nbListNames-1; i>hilit; i--) listnames[i] = listnames[i-1];
@@ -87,7 +89,16 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 				deleteInList(hilit);
 			}
 		} else {
-			heldListIndex = heldListIndex == hilit ? -1 : hilit;
+			if (heldListIndex == -1) {
+				heldListIndex = hilit;
+			} else {
+				if (heldListIndex != hilit) {
+					char* temp = strdup(listnames[heldListIndex]);
+					deleteInList(heldListIndex);
+					insertInList(hilit, temp);
+				}
+				heldListIndex = -1;
+			}
 		}
 	}
 }
