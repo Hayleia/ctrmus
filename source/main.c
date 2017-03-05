@@ -47,6 +47,7 @@ char** listnames = NULL;
 
 int debugInt = 0;
 int heldListIndex = -1;
+int heldFolderIndex = -1;
 int emptyListItemIndex = -1;
 int emptyListItemSize = -1;
 
@@ -105,11 +106,13 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 
 void listClicked(int hilit) {
 	if (hilit < nbListNames) {
-		if (heldListIndex == -1) {
+		if (heldFolderIndex != -1) { // insert item from browser
+			insertInList(hilit, strdup(foldernames[heldFolderIndex]));
+		} else if (heldListIndex == -1) { // play file
 			nowPlaying = hilit;
 			startPlayingFile(listnames[hilit]);
 		} else {
-			if (hilit != heldListIndex) {
+			if (hilit != heldListIndex) { // swap items in queue
 				char* temp = listnames[hilit];
 				listnames[hilit] = listnames[heldListIndex];
 				listnames[heldListIndex] = temp;
@@ -122,9 +125,13 @@ void listClicked(int hilit) {
 			heldListIndex = -1;
 		}
 	}
+	heldFolderIndex = -1;
 }
 
 void folderLongClicked(int hilit, bool released, int deltaX) {
+	if (nbDirs <= hilit && hilit < nbFolderNames) {
+		heldFolderIndex = hilit;
+	}
 }
 
 void folderClicked(int hilit) {
@@ -132,17 +139,20 @@ void folderClicked(int hilit) {
 		chdir(foldernames[hilit]);
 		updateFolderContents();
 	} else if (hilit < nbFolderNames) { // don't detect' clicks below the list
-		char* wd = getcwd(NULL, 0);
-		int lw = strlen(wd);
-		int lb = strlen(foldernames[hilit]);
-		int l = lw + lb;
-		char* filepath = (char*)malloc((l+1)*sizeof(char));
-		memcpy(filepath, wd, lw);
-		memcpy(filepath+lw, foldernames[hilit], lb);
-		filepath[l] = 0;
-		free(wd);
-		addToPlaylist(filepath);
+		if (heldFolderIndex != hilit) {
+			char* wd = getcwd(NULL, 0);
+			int lw = strlen(wd);
+			int lb = strlen(foldernames[hilit]);
+			int l = lw + lb;
+			char* filepath = (char*)malloc((l+1)*sizeof(char));
+			memcpy(filepath, wd, lw);
+			memcpy(filepath+lw, foldernames[hilit], lb);
+			filepath[l] = 0;
+			free(wd);
+			addToPlaylist(filepath);
+		}
 	}
+	heldFolderIndex = -1;
 }
 
 #define SCROLL_THRESHOLD 15.0f
@@ -401,6 +411,7 @@ int main(int argc, char** argv)
 				u32 color = textColor;
 				int x = paneBorder;
 				if (i==hilitFolder) color = hlTextColor;
+				if (i == heldFolderIndex) sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, cellSize, RGBA8(255,255,255,64));
 				sftd_font* font = i<nbDirs ? fontB:fontR;
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
 				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : foldernames[i]);
