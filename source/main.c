@@ -48,6 +48,9 @@ char** listnames = NULL;
 int debugInt = 0;
 int heldListIndex = -1;
 int heldFolderIndex = -1;
+
+int growingListItemIndex = -1;
+int growingListItemSize = -1;
 int emptyListItemIndex = -1;
 int emptyListItemSize = -1;
 
@@ -78,6 +81,18 @@ void deleteInList(int hilit) {
 	free(listnames);
 	listnames = newlistnames;
 }
+char* fullBrowserPath(int hilit) {
+	char* wd = getcwd(NULL, 0);
+	int lw = strlen(wd);
+	int lb = strlen(foldernames[hilit]);
+	int l = lw + lb;
+	char* filepath = (char*)malloc((l+1)*sizeof(char));
+	memcpy(filepath, wd, lw);
+	memcpy(filepath+lw, foldernames[hilit], lb);
+	filepath[l] = 0;
+	free(wd);
+	return filepath;
+}
 
 void listLongClicked(int hilit, bool released, int deltaX) {
 	debugInt = deltaX;
@@ -107,7 +122,7 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 void listClicked(int hilit) {
 	if (hilit < nbListNames) {
 		if (heldFolderIndex != -1) { // insert item from browser
-			insertInList(hilit, strdup(foldernames[heldFolderIndex]));
+			insertInList(hilit, strdup(fullBrowserPath(heldFolderIndex)));
 		} else if (heldListIndex == -1) { // play file
 			nowPlaying = hilit;
 			startPlayingFile(listnames[hilit]);
@@ -140,16 +155,7 @@ void folderClicked(int hilit) {
 		updateFolderContents();
 	} else if (hilit < nbFolderNames) { // don't detect' clicks below the list
 		if (heldFolderIndex != hilit) {
-			char* wd = getcwd(NULL, 0);
-			int lw = strlen(wd);
-			int lb = strlen(foldernames[hilit]);
-			int l = lw + lb;
-			char* filepath = (char*)malloc((l+1)*sizeof(char));
-			memcpy(filepath, wd, lw);
-			memcpy(filepath+lw, foldernames[hilit], lb);
-			filepath[l] = 0;
-			free(wd);
-			addToPlaylist(filepath);
+			addToPlaylist(fullBrowserPath(hilit));
 		}
 	}
 	heldFolderIndex = -1;
@@ -356,7 +362,10 @@ int main(int argc, char** argv)
 		vyFolder = vyFolder*inertia/(inertia+1);
 
 		emptyListItemSize = emptyListItemSize*inertia/(inertia+1);
-		emptyListItemSize = fmin(cellSize, emptyListItemSize);
+		emptyListItemSize = fmax(0,fmin(cellSize, emptyListItemSize));
+
+		growingListItemSize = (growingListItemSize*inertia+cellSize*1)/(inertia+1);
+		growingListItemSize = fmax(0,fmin(cellSize, emptyListItemSize));
 
 		paneBorder = (paneBorder*inertia+paneBorderGoal*1)/(inertia+1);
 
@@ -386,6 +395,7 @@ int main(int argc, char** argv)
 			sftd_draw_textf(fontR, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
 			*/
 			sftd_draw_textf(fontB, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%02i:%02i:%02i", hours, minutes, seconds);
+			sftd_draw_textf(fontR, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "%i", growingListItemSize);
 		}
 		sf2d_end_frame();
 
