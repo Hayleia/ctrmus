@@ -65,12 +65,15 @@ void addToPlaylist(char* filepath) {
 void insertInList(int hilit, char* s) {
 	// add an extending cell "animation" the same way as with deletion
 	// use the same "timer" variable so a move gets both animations in sync
+	if (hilit <= nowPlaying) nowPlaying++;
 	addToPlaylist(s); // insert an emtpy line at the end
 	char* temp = listnames[nbListNames-1]; // move it from the end to here
 	for (int i=nbListNames-1; i>hilit; i--) listnames[i] = listnames[i-1];
 	listnames[hilit] = temp;
 }
 void deleteInList(int hilit) {
+	if (nowPlaying == hilit) nowPlaying = -1;
+	if (nowPlaying > hilit) nowPlaying--;
 	emptyListItemIndex = hilit;
 	emptyListItemSize = 240; // will be lowered
 	free(listnames[hilit]);
@@ -100,8 +103,6 @@ void listLongClicked(int hilit, bool released, int deltaX) {
 		if (released) {
 			if (deltaX > 100) {
 				if (heldListIndex == hilit) heldListIndex = -1;
-				if (nowPlaying == hilit) nowPlaying = -1;
-				if (nowPlaying > hilit) nowPlaying--;
 				deleteInList(hilit);
 			}
 		} else {
@@ -161,7 +162,7 @@ void folderClicked(int hilit) {
 	heldFolderIndex = -1;
 }
 
-#define SCROLL_THRESHOLD 15.0f
+#define SCROLL_THRESHOLD cellSize
 
 void updateList(
 	touchPosition *touchPad, touchPosition *oldTouchPad, touchPosition *orgTouchPad, bool touchPressed, bool touchWasPressed, u64 orgTimeTouched,
@@ -180,8 +181,12 @@ void updateList(
 				deltaX = touchPad->px-orgTouchPad->px;
 				ignoreTouch = true;
 			} else if (fabs((float)(touchPad->py-orgTouchPad->py))>SCROLL_THRESHOLD) {
-				orgTouchPad->py = 256; // keep scrolling even if we come back near the "real" original pos
-				*vy = oldTouchPad->py - touchPad->py;
+				if (orgTouchPad->py != 256) {
+					*vy = orgTouchPad->py - touchPad->py;
+					orgTouchPad->py = 256; // keep scrolling even if we come back near the "real" original pos
+				} else {
+					*vy = oldTouchPad->py - touchPad->py;
+				}
 			} else {
 				if (!ignoreTouch) {
 					if (osGetTime()-orgTimeTouched > 700) {
@@ -242,8 +247,17 @@ int countCharStars(char** t) {
 	return n;
 }
 
+void scrollTo(float *vy, float y, float row, float cellSize, float inertia) {
+	// most of the actual arguments are int, but wil be cast to float anyway in the calculation...
+	*vy = (row*cellSize-10.0f-100.0f-y)*(1.0f-inertia/(inertia+1));
+	// -10 because of the top bar
+	// -120 to put row roughly in the middle of the screen, not the top
+}
+
 int main(int argc, char** argv)
 {
+	if(R_FAILED(ndspInit())) return 1;
+
 	sftd_init();
 	sf2d_init();
 	romfsInit();
@@ -305,6 +319,14 @@ int main(int argc, char** argv)
 
 	sf2d_set_vblank_wait(1);
 
+	// initialize font by drawing bullshit text
+	sf2d_start_frame(GFX_TOP, GFX_LEFT);
+	sftd_draw_textf(fontB, 0, 0, RGBA8(0,0,0,255), 100, "0123456789");
+	sf2d_end_frame();
+	sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
+	sf2d_end_frame();
+	sf2d_swapbuffers();
+
 	int scheduleCount = 0;
 	while (aptMainLoop()) {
 		hidScanInput();
@@ -323,6 +345,7 @@ int main(int argc, char** argv)
 			nowPlaying++;
 			if (nowPlaying < nbListNames) {
 				startPlayingFile(listnames[nowPlaying]);
+				scrollTo(&vyList, yList, nowPlaying, cellSize, inertia);
 			} else {
 				nowPlaying = -1;
 			}
@@ -354,6 +377,15 @@ int main(int argc, char** argv)
 				cellSize, inertia,
 				paneBorderGoal, orgPaneBorderGoal
 			);
+		}
+
+		if (hidKeysDown() & (KEY_DUP | KEY_DDOWN)) {
+			//TODO make this with key repetition?
+			if (hidKeysDown() & KEY_DUP) hilitList--;
+			if (hidKeysDown() & KEY_DDOWN) hilitList++;
+			if (hilitList < 0) hilitList = nbListNames-1;
+			if (hilitList > nbListNames-1) hilitList = 0;
+			scrollTo(&vyList, yList, hilitList, cellSize, inertia);
 		}
 
 		yList += vyList;
@@ -394,8 +426,12 @@ int main(int argc, char** argv)
 			sftd_draw_textf(fontR, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
 			sftd_draw_textf(fontR, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
 			*/
-			sftd_draw_textf(fontB, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%02i:%02i:%02i", hours, minutes, seconds);
-			sftd_draw_textf(fontR, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "%i", growingListItemSize);
+			sftd_draw_textf(fontB, 0, 0, RGBA8(0,0,0,255), 100, "%02i:%02i:%02i", hours, minutes, seconds);
+			//sftd_draw_textf(fontR, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%i", growingListItemSize);
+			u64 milli = getTime();
+			u64 sec = milli/1000;
+			u64 min = sec/60;
+			sftd_draw_textf(fontB, 0, 100, RGBA8(0,0,0,255), 25, "%02i:%02i.%03i", (int)(min%100), (int)(sec%60), (int)(milli%1000));
 		}
 		sf2d_end_frame();
 
@@ -457,6 +493,8 @@ int main(int argc, char** argv)
 	romfsExit();
 	sftd_fini();
 	sf2d_fini();
+
+	ndspExit();
 	return 0;
 }
 

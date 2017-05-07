@@ -18,6 +18,13 @@ bool			playing = false;
 bool			lastbuf = false;
 int				ret;
 
+u64 startTime = 0;
+
+u64 getTime()
+{
+	return osGetTime()-startTime;
+}
+
 int startPlayingFile(const char* file)
 {
 	stopPlayingFile();
@@ -45,8 +52,9 @@ int startPlayingFile(const char* file)
 			return 0;
 	}
 
-	if(R_FAILED(ndspInit()))
-		stopPlayingFile();
+	/*
+	if(R_FAILED(ndspInit())) stopPlayingFile();
+	*/
 
 	if((ret = (*decoder.init)(file)) != 0)
 		stopPlayingFile();
@@ -79,6 +87,8 @@ int startPlayingFile(const char* file)
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
+	startTime = osGetTime();
+
 	//printf("Playing %s\n", file);
 
 	/**
@@ -101,11 +111,13 @@ int keepPlayingFile() {
 
 		kDown = hidKeysDown();
 
+		/*
 		if(kDown & (KEY_A | KEY_R))
 		{
 			playing = !playing;
 			//printf("\33[2K\r%s", playing == false ? "Paused" : "");
 		}
+		*/
 
 		if(playing == false || lastbuf == true)
 			return 0;
@@ -155,8 +167,8 @@ int stopPlayingFile()
 		playing = false;
 		//printf("\nStopping playback.\n");
 		(*decoder.exit)();
-		ndspChnWaveBufClear(CHANNEL);
-		ndspExit();
+		//ndspChnWaveBufClear(CHANNEL);
+		//ndspExit();
 		linearFree(buffer1);
 		linearFree(buffer2);
 	}
