@@ -258,6 +258,15 @@ int main(int argc, char** argv)
 {
 	if(R_FAILED(ndspInit())) return 1;
 
+	u64 programStartTime = osGetTime();
+
+	#define BLACK RGBA8(0,0,0,255)
+	#define WHITE RGBA8(255,255,255,255)
+	// may be loaded from a config file or something
+	u32 bgColor = BLACK;
+	u32 baseColor = RGBA8(255,106,0, 255);
+	u32 dullColor = baseColor & RGBA8(255,255,255,0) | RGBA8(0,0,0,128);
+
 	sftd_init();
 	sf2d_init();
 	romfsInit();
@@ -274,7 +283,7 @@ int main(int argc, char** argv)
 	chdir(DEFAULT_DIR);
 	chdir("Music");
 
-	sf2d_set_clear_color(RGBA8(255,106,0, 255));
+	sf2d_set_clear_color(baseColor);
 	sf2d_set_vblank_wait(0);
 	fontR = sftd_load_font_file("romfs:/Ubuntu-R.ttf");
 	fontB = sftd_load_font_file("romfs:/Ubuntu-B.ttf");
@@ -310,24 +319,16 @@ int main(int argc, char** argv)
 	float paneBorderGoal = 160.0f;
 	float orgPaneBorderGoal = 160.0f;
 
-	// may be loaded from a config file or something
-	u32 bgColor = RGBA8(0,0,0,255);
-	u32 lineColor = RGBA8(255,106,0,255);
-	u32 textColor = RGBA8(255,255,255,255);
-	u32 hlTextColor = RGBA8(255,0,0,255);
-	u32 slTextColor = RGBA8(255,128,0,255);
-
 	sf2d_set_vblank_wait(1);
 
 	// initialize font by drawing bullshit text
 	sf2d_start_frame(GFX_TOP, GFX_LEFT);
-	sftd_draw_textf(fontB, 0, 0, RGBA8(0,0,0,255), 100, "0123456789");
+	sftd_draw_textf(fontB, 0, 0, BLACK, 100, "0123456789");
 	sf2d_end_frame();
 	sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
 	sf2d_end_frame();
 	sf2d_swapbuffers();
 
-	int scheduleCount = 0;
 	while (aptMainLoop()) {
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) break;
@@ -407,12 +408,14 @@ int main(int argc, char** argv)
 		yFolder = fmax(-10,fmin(cellSize*nbFolderNames-240,yFolder));
 		yList = fmax(-10,fmin(cellSize*nbListNames-240,yList));
 
-		//Print current time
+		// to print current time
 		time_t unixTime = time(NULL);
 		struct tm* timeStruct = gmtime((const time_t *)&unixTime);
 		int hours = timeStruct->tm_hour;
 		int minutes = timeStruct->tm_min;
 		int seconds = timeStruct->tm_sec;
+
+		u64 milli = osGetTime();
 
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
@@ -425,51 +428,74 @@ int main(int argc, char** argv)
 			sftd_draw_textf(fontR, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
 			sftd_draw_textf(fontR, 0, fontSize*4, RGBA8(0,0,0,255), fontSize, "emptyListItemIndex: %i", emptyListItemIndex);
 			sftd_draw_textf(fontR, 0, fontSize*5, RGBA8(0,0,0,255), fontSize, "emptyListItemSize: %i", emptyListItemSize);
+			sftd_draw_textf(fontR, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%i", growingListItemSize);
 			*/
-			sftd_draw_textf(fontB, 0, 0, RGBA8(0,0,0,255), 100, "%02i:%02i:%02i", hours, minutes, seconds);
-			//sftd_draw_textf(fontR, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "%i", growingListItemSize);
-			u64 milli = getTime();
-			u64 sec = milli/1000;
-			u64 min = sec/60;
-			sftd_draw_textf(fontB, 0, 100, RGBA8(0,0,0,255), 25, "%02i:%02i.%03i", (int)(min%100), (int)(sec%60), (int)(milli%1000));
+
+			// print current time
+			sftd_draw_textf(fontB, 0, 0, BLACK, 100, "%02i:%02i:%02i", hours, minutes, seconds);
+
+			// print time since music began playing
+			{
+				u64 playing = getMusicStartTime();
+				u64 sec = playing/1000;
+				u64 min = sec/60;
+				sftd_draw_textf(fontB, 0, 100, BLACK, 25, "%02i:%02i.%03i", (int)(min%100), (int)(sec%60), (int)(playing%1000));
+			}
+
+			// print time since program started running
+			{
+				u64 sinceStart = milli-programStartTime;
+				u64 sec = sinceStart/1000;
+				u64 min = sec/60;
+				sftd_draw_textf(fontB, 285, 100, BLACK, 25, "%02i:%02i.%03i", (int)(min%100), (int)(sec%60), (int)(sinceStart%1000));
+			}
 		}
 		sf2d_end_frame();
 
 		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
 		{
+			int margin = 20;
+
 			// list entries
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<=nbListNames; i++) {
-				u32 color = textColor;
+				u32 color = WHITE;
 				int x = 0;
 				int y = i >= emptyListItemIndex ? emptyListItemSize : 0;
 				if (paneBorderGoal > 160 && i == hilitList) x += touchPad.px - orgTouchPad.px;
-				if (i == hilitList) color = hlTextColor;
-				if (i == nowPlaying) color = slTextColor;
-				if (i == heldListIndex) sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, cellSize, RGBA8(255,255,255,64));
-				sf2d_draw_rectangle(1, y+fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(fontR, x+10, y+cellSize*i-yList, color, fontSize, i==nbListNames ? "" : basename(listnames[i]));
+				if (i == heldListIndex) {
+					sf2d_draw_rectangle(1, y + cellSize*i-yList, paneBorder, cellSize, WHITE);
+					color = BLACK;
+				}
+				if (i == hilitList) sf2d_draw_rectangle(1, y + cellSize*i-yList, paneBorder, cellSize, dullColor);
+				if (i == nowPlaying) color = baseColor;
+				sftd_font* font = i == nowPlaying ? fontB:fontR;
+				sf2d_draw_rectangle(1+margin, y+fmax(0,cellSize*i-yList), fmax(0,paneBorder-margin*2), 1, baseColor);
+				sftd_draw_textf(font, x+10, y+cellSize*i-yList + (cellSize-fontSize)/2, color, fontSize, i==nbListNames ? "" : basename(listnames[i]));
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<=nbFolderNames; i++) {
-				u32 color = textColor;
+				u32 color = WHITE;
 				int x = paneBorder;
-				if (i==hilitFolder) color = hlTextColor;
-				if (i == heldFolderIndex) sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, cellSize, RGBA8(255,255,255,64));
+				if (i == heldFolderIndex) {
+					sf2d_draw_rectangle(paneBorder, cellSize*i-yFolder, 320-1-(int)paneBorder, cellSize, WHITE);
+					color = BLACK;
+				}
+				if (i == hilitFolder) sf2d_draw_rectangle(paneBorder, cellSize*i-yFolder, 320-1-(int)paneBorder, cellSize, dullColor);
 				sftd_font* font = i<nbDirs ? fontB:fontR;
-				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, x+10, cellSize*i-yFolder, color, fontSize, i==nbFolderNames ? "" : foldernames[i]);
+				sf2d_draw_rectangle(paneBorder+margin, fmax(0,cellSize*i-yFolder), fmax(0,320-1-(int)paneBorder-margin*2), 1, baseColor);
+				sftd_draw_textf(font, x+10, cellSize*i-yFolder + (cellSize-fontSize)/2, color, fontSize, i==nbFolderNames ? "" : foldernames[i]);
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
 
-			sf2d_draw_rectangle(paneBorder, 0, 1, 240, RGBA8(255,255,255,255));
+			sf2d_draw_rectangle(paneBorder, 0, 1, 240, WHITE);
 
 			// progress bar
-			sf2d_draw_rectangle(0, 0, 320, 10, RGBA8(255,106,0,255));
-			sf2d_draw_rectangle(20, 0, progress*(320-20*2), 9, RGBA8(0,0,0,255));
+			sf2d_draw_rectangle(0, 0, 320, 10, baseColor);
+			sf2d_draw_rectangle(20, 0, progress*(320-20*2), 9, BLACK);
 		}
 		sf2d_end_frame();
 

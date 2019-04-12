@@ -20,7 +20,7 @@ int				ret;
 
 u64 startTime = 0;
 
-u64 getTime()
+u64 getMusicStartTime()
 {
 	return osGetTime()-startTime;
 }
